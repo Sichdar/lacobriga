@@ -31,10 +31,90 @@
         position: fixed;
         inset: 0;
       }
+      #ui {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        font-family: system-ui, -apple-system, sans-serif;
+        color: #1d3557;
+      }
+      .title {
+        position: absolute;
+        top: calc(env(safe-area-inset-top) + 10px);
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-weight: 700;
+        font-size: 20px;
+        letter-spacing: 0.5px;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+      }
+      .toolbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 8px 10px calc(env(safe-area-inset-bottom) + 8px);
+        background: rgba(255, 250, 240, 0.92);
+        border-top: 2px solid #e9c46a;
+        pointer-events: auto;
+        scrollbar-width: none;
+      }
+      .toolbar button {
+        flex: 0 0 auto;
+        min-width: 62px;
+        border: 2px solid transparent;
+        border-radius: 12px;
+        background: #fff;
+        padding: 6px 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        font: inherit;
+        color: inherit;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      }
+      .toolbar button.on {
+        border-color: #e76f51;
+        background: #fff1e6;
+      }
+      .toolbar .icon {
+        font-size: 24px;
+        line-height: 1;
+      }
+      .toolbar .label {
+        font-size: 12px;
+      }
+      .toast {
+        position: absolute;
+        left: 50%;
+        bottom: calc(env(safe-area-inset-bottom) + 92px);
+        transform: translateX(-50%);
+        max-width: 85%;
+        padding: 8px 14px;
+        border-radius: 18px;
+        background: rgba(29, 53, 87, 0.88);
+        color: #fff;
+        font-size: 14px;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.25s;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      .toast.bad {
+        background: rgba(193, 18, 31, 0.9);
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="ui"><div class="title">Lacobriga</div></div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
