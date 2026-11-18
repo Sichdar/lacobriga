@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+
+# Private working notes: stay on this PC, never go to the public repo
+project-log.md
+project-log-*.md
+backups/
+.claude/
