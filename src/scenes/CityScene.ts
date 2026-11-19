@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
 import { City } from '../core/city';
+import { MAX_AWAY_MS, advance, stats } from '../core/economy';
+import { askToKeepStorage, exportSave, loadLocal, readSaveFile, saveLocal } from '../core/save';
 import { TILE_H, TILE_W, tileToWorld, worldToTile, DIRS } from '../core/iso';
 import { lagosMap } from '../core/map';
 import { BUILDINGS, BUILDING_BY_ID } from '../data/buildings';
+import { Hud } from '../ui/hud';
 import type { Toolbar } from '../ui/toolbar';
 
 const TERRAIN_KEYS = ['grass', 'water', 'sand', 'cliff'];
@@ -15,6 +18,8 @@ export class CityScene extends Phaser.Scene {
   private ground: Phaser.GameObjects.Image[] = [];
   private houses = new Map<string, Phaser.GameObjects.Container>();
   private marker!: Phaser.GameObjects.Graphics;
+  private hud!: Hud;
+  private lastTick = Date.now();
 
   // Touch state
   private dragging = false;
@@ -33,8 +38,9 @@ export class CityScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.city = new City(lagosMap());
-    const map = this.city.map;
+    const map = lagosMap();
+    const loaded = loadLocal(map);
+    this.city = loaded?.city ?? new City(map);
 
     // Ground tiles. Drawing order = depth: rows nearer the bottom of the screen draw later,
     // so they cover the sides of the tiles (and buildings) behind them.
@@ -46,10 +52,81 @@ export class CityScene extends Phaser.Scene {
       }
     }
 
+    this.redrawAll();
+
     this.marker = this.add.graphics().setDepth(10000);
     this.setUpCamera();
     this.setUpInput();
-    this.toolbar.say('Welcome to Lacobriga! Pick something below, then tap the map');
+
+    this.hud = new Hud(document.getElementById('ui')!, {
+      exportSave: () => void exportSave(this.city).then((msg) => this.toolbar.say(msg)),
+      importSave: (file) => void this.importSave(file),
+    });
+    this.setUpClock();
+    askToKeepStorage();
+
+    if (!loaded) {
+      this.toolbar.say('Welcome to Lacobriga! Build a road, then houses next to it', false, 4000);
+    } else if (loaded.awayEarned >= 1) {
+      this.toolbar.say(`Welcome back! Your town earned 🪙${Math.floor(loaded.awayEarned)} while you were away`, false, 4000);
+    } else {
+      this.toolbar.say('Welcome back to Lacobriga');
+    }
+  }
+
+  // ---------- Time, money and saving ----------
+
+  private setUpClock(): void {
+    this.lastTick = Date.now();
+    this.time.addEvent({ delay: 1000, loop: true, callback: () => this.tick() });
+    this.time.addEvent({ delay: 10000, loop: true, callback: () => saveLocal(this.city) });
+    // Save when the player leaves (home button, app switch, closing the tab).
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') saveLocal(this.city);
+      else this.tick();
+    });
+    window.addEventListener('pagehide', () => saveLocal(this.city));
+    this.updateUi();
+  }
+
+  /** Move the town forward by the real time since the last tick (covers time spent in the background). */
+  private tick(): void {
+    const now = Date.now();
+    const ms = Math.min(MAX_AWAY_MS, Math.max(0, now - this.lastTick));
+    this.lastTick = now;
+    const before = this.city.level;
+    const { earned, levelUp } = advance(this.city, ms);
+    if (levelUp) {
+      const unlocked = BUILDINGS.filter((b) => b.unlockLevel > before && b.unlockLevel <= this.city.level).map((b) => b.name);
+      const extra = unlocked.length ? ` ${unlocked.join(', ')} unlocked` : '';
+      this.toolbar.say(`⭐ Town level ${this.city.level}!${extra}`, false, 4000);
+      saveLocal(this.city);
+    } else if (ms > 5 * 60 * 1000 && earned >= 1) {
+      this.toolbar.say(`Welcome back! Your town earned 🪙${Math.floor(earned)}`, false, 4000);
+    }
+    this.updateUi();
+  }
+
+  private updateUi(): void {
+    this.hud.update(this.city, stats(this.city));
+    this.toolbar.refresh(this.city.coins, this.city.level);
+  }
+
+  private async importSave(file: File): Promise<void> {
+    try {
+      const city = await readSaveFile(this.city.map, file);
+      if (!window.confirm('Replace the town on this phone with the one in this file?')) return;
+      for (const box of this.houses.values()) box.destroy();
+      this.houses.clear();
+      this.city = city;
+      this.redrawAll();
+      this.lastTick = Date.now();
+      saveLocal(this.city);
+      this.updateUi();
+      this.toolbar.say('Save loaded');
+    } catch (e) {
+      this.toolbar.say((e as Error).message, true, 3500);
+    }
   }
 
   // ---------- Camera ----------
@@ -158,10 +235,19 @@ export class CityScene extends Phaser.Scene {
     this.flash(t.x, t.y, result.ok);
     if (this.toolbar.tool.kind !== 'look' || !result.ok) this.toolbar.say(result.message, !result.ok);
     else this.toolbar.say(result.message);
-    if (result.ok) this.redrawAround(t.x, t.y);
+    if (result.ok) {
+      this.redrawAround(t.x, t.y);
+      this.tick(); // update coins and level straight away
+      saveLocal(this.city);
+    }
   }
 
   // ---------- Drawing ----------
+
+  private redrawAll(): void {
+    const map = this.city.map;
+    for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) this.redrawTile(x, y);
+  }
 
   /** Redraw a tile and its neighbours (road shapes depend on neighbours). */
   private redrawAround(x: number, y: number): void {
@@ -183,8 +269,11 @@ export class CityScene extends Phaser.Scene {
       this.houses.delete(k);
       return;
     }
-    if (existing) return;
-    this.houses.set(k, this.makeBuilding(id, x, y));
+    const box = existing ?? this.makeBuilding(id, x, y);
+    if (!existing) this.houses.set(k, box);
+    // Houses and shops look faded until a road touches them (they don't work yet).
+    const works = BUILDING_BY_ID.get(id)?.happiness || this.city.touchesRoad(x, y);
+    box.setAlpha(works ? 1 : 0.55);
   }
 
   /** Stack a building's images: each part sits on the top face of the part below. */

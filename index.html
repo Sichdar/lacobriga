@@ -38,16 +38,99 @@
         font-family: system-ui, -apple-system, sans-serif;
         color: #1d3557;
       }
-      .title {
+      .hud {
         position: absolute;
-        top: calc(env(safe-area-inset-top) + 10px);
+        top: 0;
         left: 0;
         right: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: calc(env(safe-area-inset-top) + 8px) 8px 8px;
+        background: rgba(255, 250, 240, 0.92);
+        border-bottom: 2px solid #e9c46a;
+        pointer-events: auto;
+        font-size: 14px;
+      }
+      .hud .stat {
+        display: flex;
+        align-items: baseline;
+        gap: 3px;
+        white-space: nowrap;
+      }
+      .hud .stat small {
+        font-size: 11px;
+        color: #2a9d8f;
+      }
+      .hud .level {
+        flex-wrap: wrap;
+        width: 54px;
+      }
+      .hud .level i {
+        display: block;
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: #e8dcc4;
+        overflow: hidden;
+      }
+      .hud .level em {
+        display: block;
+        height: 100%;
+        background: #e76f51;
+      }
+      .hud .gear {
+        margin-left: auto;
+        border: 0;
+        background: none;
+        font-size: 22px;
+        padding: 2px 4px;
+      }
+      .menu {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(29, 53, 87, 0.45);
+        pointer-events: auto;
+      }
+      .menu.show {
+        display: flex;
+      }
+      .menu .card {
+        width: min(300px, 85%);
+        background: #fffaf0;
+        border-radius: 16px;
+        padding: 16px;
         text-align: center;
-        font-weight: 700;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+      }
+      .menu h2 {
+        margin: 0 0 6px;
         font-size: 20px;
-        letter-spacing: 0.5px;
-        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+      }
+      .menu p {
+        font-size: 14px;
+        margin: 0 0 12px;
+      }
+      .menu button,
+      .menu .as-button {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 8px 0;
+        padding: 12px;
+        border: 2px solid #e9c46a;
+        border-radius: 12px;
+        background: #fff;
+        font: inherit;
+        font-size: 16px;
+        color: inherit;
+      }
+      .menu .plain {
+        border-color: transparent;
+        background: none;
       }
       .toolbar {
         position: absolute;
@@ -89,10 +172,20 @@
       .toolbar .label {
         font-size: 12px;
       }
+      .toolbar .cost {
+        font-size: 11px;
+        color: #6c757d;
+      }
+      .toolbar button.poor .cost {
+        color: #c1121f;
+      }
+      .toolbar button.locked {
+        opacity: 0.5;
+      }
       .toast {
         position: absolute;
         left: 50%;
-        bottom: calc(env(safe-area-inset-bottom) + 92px);
+        bottom: calc(env(safe-area-inset-bottom) + 108px);
         transform: translateX(-50%);
         max-width: 85%;
         padding: 8px 14px;
@@ -114,7 +207,7 @@
   </head>
   <body>
     <div id="game"></div>
-    <div id="ui"><div class="title">Lacobriga</div></div>
+    <div id="ui"></div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
