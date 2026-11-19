@@ -1,22 +1,14 @@
+import type { BuildingArt } from '../art';
 import type { Terrain } from '../core/map';
-
-/** One image in a building, stacked from the ground up (walls, then roof). */
-export type BuildingPart = { key: string; file: string };
 
 export type BuildingDef = {
   id: string;
   name: string;
   icon: string;
-  /** Images stacked bottom to top. */
-  parts: BuildingPart[];
+  /** Its picture (drawn in src/art/buildings.ts). */
+  art: BuildingArt;
   /** Ground it can be built on. */
   allowedOn: Terrain[];
-  /**
-   * Where the bottom of the first image sits, in pixels below the tile's top corner.
-   * Leave out for the small stackable pieces (centred on the tile automatically).
-   * Full-tile pictures (park, shop) need it: they include their own block of ground.
-   */
-  baseY?: number;
   /** Coins to build. Removing gives half back. */
   cost: number;
   /** Town level needed before it can be built. */
@@ -29,14 +21,12 @@ export type BuildingDef = {
   happiness?: number;
 };
 
-const tile = (key: string): BuildingPart => ({ key, file: `assets/tiles/${key}.png` });
-
 export const BUILDINGS: BuildingDef[] = [
   {
     id: 'house',
     name: 'House',
     icon: '🏠',
-    parts: [tile('house_base_a'), tile('roof_orange_a')],
+    art: 'house',
     allowedOn: ['grass'],
     cost: 50,
     unlockLevel: 1,
@@ -46,7 +36,7 @@ export const BUILDINGS: BuildingDef[] = [
     id: 'house2',
     name: 'Villa',
     icon: '🏡',
-    parts: [tile('house_base_b'), tile('roof_orange_b')],
+    art: 'villa',
     allowedOn: ['grass'],
     cost: 150,
     unlockLevel: 2,
@@ -56,9 +46,8 @@ export const BUILDINGS: BuildingDef[] = [
     id: 'shop',
     name: 'Shop',
     icon: '🏪',
-    parts: [tile('shop_a')],
+    art: 'shop',
     allowedOn: ['grass'],
-    baseY: 101,
     cost: 80,
     unlockLevel: 1,
     jobs: 6,
@@ -67,9 +56,8 @@ export const BUILDINGS: BuildingDef[] = [
     id: 'park',
     name: 'Park',
     icon: '🌳',
-    parts: [tile('tree_park')],
+    art: 'park',
     allowedOn: ['grass', 'sand'],
-    baseY: 101,
     cost: 40,
     unlockLevel: 1,
     happiness: 5,

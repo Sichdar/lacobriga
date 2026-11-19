@@ -5,10 +5,11 @@ import { askToKeepStorage, exportSave, loadLocal, readSaveFile, saveLocal } from
 import { TILE_H, TILE_W, tileToWorld, worldToTile, DIRS } from '../core/iso';
 import { lagosMap } from '../core/map';
 import { BUILDINGS, BUILDING_BY_ID } from '../data/buildings';
+import { ART_SCALE, groundKey, roadKey } from '../art';
+import { C } from '../art/palette';
 import { Hud } from '../ui/hud';
 import type { Toolbar } from '../ui/toolbar';
 
-const TERRAIN_KEYS = ['grass', 'water', 'sand', 'cliff'];
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
 
@@ -27,17 +28,17 @@ export class CityScene extends Phaser.Scene {
   private pinchDist = 0;
   private downAt = { x: 0, y: 0 };
 
-  constructor(private readonly toolbar: Toolbar) {
+  constructor(
+    private readonly toolbar: Toolbar,
+    private readonly art: Map<string, HTMLImageElement>,
+  ) {
     super('City');
   }
 
-  preload(): void {
-    for (const k of TERRAIN_KEYS) this.load.image(k, `assets/tiles/${k}.png`);
-    for (let m = 0; m < 16; m++) this.load.image(`road_${m}`, `assets/tiles/road_${m}.png`);
-    for (const b of BUILDINGS) for (const p of b.parts) this.load.image(p.key, p.file);
-  }
-
   create(): void {
+    // Pictures were drawn before the game started (src/art); hand them to Phaser.
+    for (const [key, img] of this.art) if (!this.textures.exists(key)) this.textures.addImage(key, img);
+
     const map = lagosMap();
     const loaded = loadLocal(map);
     this.city = loaded?.city ?? new City(map);
@@ -48,7 +49,11 @@ export class CityScene extends Phaser.Scene {
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const w = tileToWorld(x, y);
-        this.ground[y * map.width + x] = this.add.image(w.x, w.y, map.get(x, y)!).setOrigin(0.5, 0).setDepth(x + y);
+        this.ground[y * map.width + x] = this.add
+          .image(w.x, w.y, groundKey(map.get(x, y)!, x, y))
+          .setOrigin(0.5, 0)
+          .setScale(1 / ART_SCALE)
+          .setDepth(x + y);
       }
     }
 
@@ -139,7 +144,7 @@ export class CityScene extends Phaser.Scene {
     const bottom = ((map.width + map.height) * TILE_H) / 2 + 40;
     const pad = 200;
     cam.setBounds(left - pad, -pad - 80, right - left + 2 * pad, bottom + 2 * pad + 80);
-    cam.setBackgroundColor('#8fd3f4');
+    cam.setBackgroundColor(C.openSea);
 
     // Start zoomed so about 7 tiles fit across, looking at the old town by the river mouth.
     const startZoom = Phaser.Math.Clamp(cam.width / (TILE_W * 7), MIN_ZOOM, MAX_ZOOM);
@@ -259,7 +264,8 @@ export class CityScene extends Phaser.Scene {
     const map = this.city.map;
     if (!map.inside(x, y)) return;
     const img = this.ground[y * map.width + x];
-    img.setTexture(this.city.hasRoad(x, y) ? `road_${this.city.roadMask(x, y)}` : map.get(x, y)!);
+    const terrain = map.get(x, y)!;
+    img.setTexture(this.city.hasRoad(x, y) ? roadKey(terrain, this.city.roadMask(x, y)) : groundKey(terrain, x, y));
 
     const k = `${x},${y}`;
     const id = this.city.buildingAt(x, y);
@@ -276,21 +282,13 @@ export class CityScene extends Phaser.Scene {
     box.setAlpha(works ? 1 : 0.55);
   }
 
-  /** Stack a building's images: each part sits on the top face of the part below. */
+  /** A building's picture: its bottom edge sits on the tile's bottom corner. */
   private makeBuilding(id: string, x: number, y: number): Phaser.GameObjects.Container {
     const def = BUILDING_BY_ID.get(id)!;
     const top = tileToWorld(x, y);
     // Just above its own ground tile, below the tiles in front of it.
     const box = this.add.container(top.x, top.y).setDepth(x + y + 0.5);
-
-    const first = this.textures.getFrame(def.parts[0].key);
-    // Where the bottom of the first image goes, measured down from the tile's top corner.
-    let bottom = def.baseY ?? TILE_H / 2 + first.width / 4;
-    for (const part of def.parts) {
-      const f = this.textures.getFrame(part.key);
-      box.add(this.add.image(0, bottom, part.key).setOrigin(0.5, 1));
-      bottom -= f.height - f.width / 2;
-    }
+    box.add(this.add.image(0, TILE_H, `b_${def.art}`).setOrigin(0.5, 1).setScale(1 / ART_SCALE));
     return box;
   }
 

@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { CityScene } from './scenes/CityScene';
+import { bakeArt } from './art';
+import { C } from './art/palette';
 import { Toolbar } from './ui/toolbar';
 
 // Draw at the phone's real pixel density (capped at 2 to keep it smooth), so tiles stay sharp.
@@ -19,14 +21,16 @@ window.addEventListener('error', (e) => {
 });
 
 const toolbar = new Toolbar(document.getElementById('ui')!);
+// Draw all the town's pictures first (takes a fraction of a second).
+const art = await bakeArt();
 const { w, h } = size();
 
 const game = new Phaser.Game({
   type: params.has('canvas') ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
-  backgroundColor: '#8fd3f4',
+  backgroundColor: C.openSea,
   scale: { mode: Phaser.Scale.NONE, width: w, height: h, zoom: 1 / dpr },
-  scene: [new CityScene(toolbar)],
+  scene: [new CityScene(toolbar, art)],
 });
 game.registry.set('dpr', dpr);
 if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
